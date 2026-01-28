@@ -1,13 +1,13 @@
 import os
 import uuid
-from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile
 
 from app.core.citations import extract_citations
 from app.core.llm import generate_answer
 from app.core.memory import memory
-from app.core.schemas import QueryRequest, QueryResponse, TaskStatus, task_statuses
+from app.core.schemas import QueryRequest, QueryResponse, TaskStatus
+from app.core.task_store import create_task, get_task as get_task_from_db
 from app.core.tasks import (
     get_hybrid_retriever,
     get_reranker,
@@ -30,11 +30,7 @@ async def upload(file: UploadFile, background_tasks: BackgroundTasks):
             content = await file.read()
             f.write(content)
 
-        task_statuses[task_id] = {
-            "status": TaskStatus.PROCESSING,
-            "filename": file.filename,
-            "created_at": datetime.now().isoformat(),
-        }
+        create_task(task_id, file.filename)
 
         background_tasks.add_task(process_and_index_document, save_path, task_id)
 
@@ -51,10 +47,11 @@ async def upload(file: UploadFile, background_tasks: BackgroundTasks):
 @router.get("/tasks/{task_id}")
 async def get_task(task_id: str):
     """Get the status of an indexing task."""
-    if task_id not in task_statuses:
+    task = get_task_from_db(task_id)
+    if not task:
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
-    return task_statuses[task_id]
+    return task
 
 
 @router.post("/query", response_model=QueryResponse)
