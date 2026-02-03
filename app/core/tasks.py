@@ -25,11 +25,27 @@ def get_reranker() -> CohereReranker:
     return _reranker
 
 
-def process_and_index_document(file_path: str, task_id: str):
+def process_and_index_document(
+    file_path: str,
+    task_id: str,
+    folder_id: str = None,
+    document_id: str = None,
+    original_filename: str = None,
+):
     """Process document and create embeddings in background."""
     try:
         documents = load_document(file_path)
         nodes = chunk_documents(documents)
+
+        # Add folder_id, document_id, and override file_name with original filename
+        for node in nodes:
+            if folder_id:
+                node.metadata["folder_id"] = str(folder_id)
+            if document_id:
+                node.metadata["document_id"] = str(document_id)
+            # Override UUID-based filename with original user-facing filename
+            if original_filename:
+                node.metadata["file_name"] = original_filename
 
         index_manager.add_documents(nodes)
         get_hybrid_retriever().add_nodes(nodes)

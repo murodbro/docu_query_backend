@@ -45,11 +45,20 @@ class IndexManager:
         vector_store = ChromaVectorStore(chroma_collection=self._collection)
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
-        self._index = VectorStoreIndex(
-            nodes=[],
-            storage_context=storage_context,
-            embed_model=embed_model,
-        )
+        # Check if collection has existing data
+        if self._collection.count() > 0:
+            # Load existing index from vector store
+            self._index = VectorStoreIndex.from_vector_store(
+                vector_store=vector_store,
+                embed_model=embed_model,
+            )
+        else:
+            # Create new empty index
+            self._index = VectorStoreIndex(
+                nodes=[],
+                storage_context=storage_context,
+                embed_model=embed_model,
+            )
 
         return self._index
 

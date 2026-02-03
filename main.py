@@ -1,4 +1,5 @@
 import uvicorn
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
@@ -7,9 +8,24 @@ from slowapi.errors import RateLimitExceeded
 from app.core.logging import logger, setup_logging
 from app.core.rate_limit import limiter
 from app.core.routers import router
+from app.auth.auth_router import auth_router
+from app.core.database import init_db
 
 # Setup logging
 setup_logging()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    # Startup
+    logger.info("DocuQuery API starting up...")
+    init_db()
+    logger.info("Database initialized")
+    yield
+    # Shutdown
+    logger.info("DocuQuery API shutting down...")
+
 
 app = FastAPI(
     title="DocuQuery API",
@@ -29,6 +45,7 @@ and ask natural language questions, receiving accurate answers with source citat
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # Add rate limiter
@@ -44,6 +61,7 @@ app.add_middleware(
 )
 
 app.include_router(router)
+app.include_router(auth_router)
 
 
 @app.get("/", tags=["Health"])
@@ -51,18 +69,6 @@ def health_check():
     """Health check endpoint."""
     logger.info("Health check called")
     return {"ok": True, "service": "DocuQuery API", "version": "1.0.0"}
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Log application startup."""
-    logger.info("DocuQuery API starting up...")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Log application shutdown."""
-    logger.info("DocuQuery API shutting down...")
 
 
 if __name__ == "__main__":

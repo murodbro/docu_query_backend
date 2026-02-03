@@ -72,6 +72,7 @@ def extract_citations(
 
         citation = {
             "document": metadata.get("file_name", "unknown"),
+            "document_id": metadata.get("document_id"),
             "page": page,
             "chunk_text": _extract_key_sentences(chunk_text, query),
             "relevance_score": round(float(node_score.score), 4),

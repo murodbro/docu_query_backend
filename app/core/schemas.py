@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class QueryRequest(BaseModel):
     query: str
     session_id: Optional[str] = None
+    folder_id: Optional[str] = None  # Filter by specific folder
 
 
 class QueryResponse(BaseModel):

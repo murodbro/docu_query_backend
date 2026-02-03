@@ -22,11 +22,7 @@ class HybridRetriever:
         try:
             docstore = self.vector_index.storage_context.docstore
             if hasattr(docstore, "docs"):
-                nodes = [
-                    node
-                    for node in docstore.docs.values()
-                    if isinstance(node, BaseNode)
-                ]
+                nodes = [node for node in docstore.docs.values() if isinstance(node, BaseNode)]
                 self.all_nodes = nodes
                 if self.all_nodes:
                     self.bm25_retriever = BM25Retriever(self.all_nodes)
@@ -71,18 +67,16 @@ class HybridRetriever:
 
         try:
             query_bundle = QueryBundle(query_str=query)
-            vector_results = self.vector_index.retrieve(query_bundle)
+            # Use as_retriever() to properly query the vector store
+            retriever = self.vector_index.as_retriever(similarity_top_k=top_k * 2)
+            vector_results = retriever.retrieve(query_bundle)
             max_vector_score = max([r.score for r in vector_results], default=1.0)
 
             for result in vector_results[: top_k * 2]:
                 node_id = (
-                    result.node.node_id
-                    if hasattr(result.node, "node_id")
-                    else str(id(result.node))
+                    result.node.node_id if hasattr(result.node, "node_id") else str(id(result.node))
                 )
-                normalized_score = (
-                    result.score / max_vector_score if max_vector_score > 0 else 0.0
-                )
+                normalized_score = result.score / max_vector_score if max_vector_score > 0 else 0.0
                 if node_id not in results:
                     results[node_id] = (result.node, 0.0)
                 _, current_score = results[node_id]
@@ -90,12 +84,9 @@ class HybridRetriever:
                     result.node,
                     current_score + vector_weight * normalized_score,
                 )
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[ERROR] Vector retrieval failed: {e}")
 
         scored_nodes = sorted(results.values(), key=lambda x: x[1], reverse=True)
 
-        return [
-            NodeWithScore(node=node, score=score)
-            for node, score in scored_nodes[:top_k]
-        ]
+        return [NodeWithScore(node=node, score=score) for node, score in scored_nodes[:top_k]]
