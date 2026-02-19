@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.auth import (
     get_password_hash,
+    send_telegram_login_notification,
     verify_password,
     create_access_token,
     get_current_user,
@@ -81,6 +82,7 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
         )
 
     access_token = create_access_token(data={"sub": user.id})
+    send_telegram_login_notification(user.email, name=user.name)
     return Token(access_token=access_token)
 
 
@@ -103,7 +105,10 @@ def verify_email(data: EmailVerification, db: Session = Depends(get_db)):
     if user.email_verified:
         return MessageResponse(message="Email already verified")
 
-    if user.verification_token_expires and user.verification_token_expires < datetime.utcnow():
+    if (
+        user.verification_token_expires
+        and user.verification_token_expires < datetime.utcnow()
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Verification token has expired. Please request a new one.",
@@ -127,7 +132,9 @@ def resend_verification(data: ResendVerification, db: Session = Depends(get_db))
 
     if not user:
         # Don't reveal if email exists
-        return MessageResponse(message="If the email exists, a verification link has been sent")
+        return MessageResponse(
+            message="If the email exists, a verification link has been sent"
+        )
 
     if user.email_verified:
         raise HTTPException(
@@ -143,7 +150,9 @@ def resend_verification(data: ResendVerification, db: Session = Depends(get_db))
     # Send email
     send_verification_email(user.email, user.name, verification_token)
 
-    return MessageResponse(message="If the email exists, a verification link has been sent")
+    return MessageResponse(
+        message="If the email exists, a verification link has been sent"
+    )
 
 
 # Profile CRUD endpoints
@@ -176,7 +185,8 @@ def change_password(
     # Verify current password
     if not verify_password(data.current_password, current_user.hashed_password):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
         )
 
     # Update password

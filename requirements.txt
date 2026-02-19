@@ -17,6 +17,7 @@ anthropic==0.75.0
 python-multipart==0.0.21
 rank-bm25==0.2.2
 python-dotenv==1.2.1
+pydantic==2.12.5
 docx2txt==0.9
 docx2python
 olefile
@@ -26,6 +27,6 @@ bcrypt==4.0.1
 passlib[bcrypt]==1.7.4
 python-jose[cryptography]==3.3.0
 sqlalchemy==2.0.25
-email-validator
-alembic
-resend
+email-validator==2.3.0
+alembic==1.18.4
+resend==2.22.0

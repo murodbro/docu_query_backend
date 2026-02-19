@@ -1,4 +1,5 @@
 import os
+import requests
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -37,13 +38,16 @@ def get_password_hash(password: str) -> str:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create a JWT access token."""
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = datetime.utcnow() + (
+        expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
 ) -> User:
     """Get current user from JWT token."""
     credentials_exception = HTTPException(
@@ -67,3 +71,27 @@ def get_current_user(
         raise credentials_exception
 
     return user
+
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+
+
+def send_telegram_login_notification(user_email: str, name: str):
+    """Sends a notification to Telegram when a user logs in."""
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    message = (
+        f"🔔 **New Login Detected**\n"
+        f"👤 **User:** {name}\n"
+        f"📧 **Email:** {user_email}\n"
+        f"⏰ **Time:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC"
+    )
+
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"}
+
+    try:
+        response = requests.post(url, json=payload)
+        response.raise_for_status()
+    except Exception as e:
+        # Log the error but don't stop the user from logging in
+        print(f"Failed to send Telegram notification: {e}")
